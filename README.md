@@ -1,1 +1,1 @@
-# notes-on-deep-reinforcement-learning-
+这是学习强化学习的一些笔记，内容主要来自bilibili上西湖大学提供的“强化学习数学原理”视频课，以及Stanford的cs系列公开课。
