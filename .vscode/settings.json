@@ -1,0 +1,12 @@
+{
+    // 启用 remark-math 插件
+    "markdown-pdf.remarkPlugins": ["remark-math"],
+    // 启用 rehype-katex 渲染
+    "markdown-pdf.rehypePlugins": ["rehype-katex"],
+    // 可选：遇错不报
+    "markdown-pdf.katexOptions": {
+      "throwOnError": false
+    },
+    // 保留页面背景（如果你需要背景色或边距）
+    "markdown-pdf.printBackground": true
+  }

@@ -1,0 +1,223 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% 您可以将其粘贴到Overleaf等在线LaTeX编辑器中直接编译。
+%
+% 主要使用的宏包 (Packages):
+% - ctex: 提供中文支持，确保标题、文本中的中文能正确显示。
+% - amsmath, amssymb: American Mathematical Society 提供的宏包，
+%                      用于排版复杂的数学公式和符号。
+% - geometry: 用于设置页面边距，使版面更美观。
+% - enumitem: 用于优化列表环境（itemize, enumerate）。
+% - hyperref: 生成PDF书签和可点击的链接，提升阅读体验。
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[a4paper]{article}
+
+% --- 中文与排版设置 ---
+\usepackage{ctex} % 中文支持
+\usepackage[a4paper, margin=1in]{geometry} % 设置A4页面和1英寸边距
+
+% --- 数学公式相关宏包 ---
+\usepackage{amsmath}   % 强大的数学公式环境，如 align*
+\usepackage{amssymb}   % 提供更多数学符号，如 \mathbb
+\usepackage{bm}        % 处理数学公式中的粗体
+
+% --- 其他功能性宏包 ---
+\usepackage{enumitem}  % 优化列表格式
+\usepackage{hyperref}  % 创建超链接
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={强化学习笔记},
+    pdfpagemode=FullScreen,
+}
+
+% --- 自定义数学命令 ---
+% 定义 argmax 操作符，使其下标显示在正下方
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+% --- 文档开始 ---
+\begin{document}
+
+\title{强化学习笔记：价值函数与贝尔曼方程}
+\author{} % 作者留空
+\date{2025年7月20日}
+\maketitle
+
+\section{State Value (状态价值函数)}
+
+\begin{itemize}
+    \item \textbf{状态价值（State Value）}：在遵循策略 $\pi$ 的前提下，从状态 $s$ 出发所能获得的期望回报（Expected Return）。
+    \item \textbf{回报（Return）}：从某个时刻开始，后续所有奖励的折扣总和，是一条具体轨迹的产出。
+    \item \textbf{价值（Value）}：对所有可能轨迹的回报求期望，是一个统计量。
+\end{itemize}
+
+\textbf{状态价值函数 (State-Value Function) 定义为：}
+\begin{equation*}
+v_\pi(s) = \mathbb{E}_\pi \bigl[G_t \mid S_t = s\bigr]
+\end{equation*}
+其中：
+\begin{itemize}
+    \item $G_t = \displaystyle\sum_{k=0}^\infty \gamma^k R_{t+k+1}$ 表示从时刻 $t$ 开始的总折扣回报；
+    \item $\mathbb{E}_\pi[\cdot]$ 表示在策略 $\pi$ 下的期望。
+\end{itemize}
+
+\hrulefill
+
+\section{Bellman Equation (贝尔曼方程)}
+
+\textbf{状态价值函数的贝尔曼展开：}
+\begin{equation*}
+v_\pi(s) = \mathbb{E}_\pi \bigl[R_{t+1} + \gamma\,G_{t+1} \mid S_t = s\bigr]
+\end{equation*}
+
+进一步边缘化动作和后继状态，可得：
+\begin{equation*}
+v_\pi(s) = \sum_a \pi(a \mid s)\,\Bigl(\mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v_\pi(s')\Bigr)
+\end{equation*}
+
+或者写成期望形式：
+\begin{equation*}
+v_\pi(s) = \sum_a \pi(a \mid s)\,\mathbb{E}\bigl[R_{t+1} + \gamma\,v_\pi(S_{t+1}) \mid S_t = s, A_t = a\bigr]
+\end{equation*}
+其中：
+\begin{itemize}
+    \item $\mathcal{R}_s^a = \mathbb{E}[R_{t+1} \mid S_t = s, A_t = a]$；
+    \item $\mathcal{P}_{ss'}^a = p(s' \mid s, a)$。
+\end{itemize}
+
+\hrulefill
+
+\section{矩阵形式的贝尔曼方程}
+
+首先，为所有状态 $s \in \mathcal{S}$ 写出：
+\begin{equation*}
+v_\pi(s) = \sum_a \pi(a \mid s)\,\mathcal{R}_s^a \;+\;\gamma\,\sum_a \pi(a \mid s)\,\sum_{s'}\mathcal{P}_{ss'}^a\,v_\pi(s')
+\end{equation*}
+
+定义：
+\begin{itemize}
+    \item 价值向量 $\mathbf{v}_\pi$，其中第 $s$ 项为 $v_\pi(s)$；
+    \item 奖励向量 $\mathbf{r}_\pi$，其中第 $s$ 项为 $r_\pi(s)=\sum_a\pi(a\mid s)\,\mathcal{R}_s^a$；
+    \item 状态转移矩阵 $\mathbf{P}_\pi$，其中第 $(s,s')$ 项为 $P_\pi(s,s')=\sum_a\pi(a\mid s)\,\mathcal{P}_{ss'}^a$。
+\end{itemize}
+
+于是矩阵形式：
+\begin{equation*}
+\mathbf{v}_\pi = \mathbf{r}_\pi + \gamma\,\mathbf{P}_\pi\,\mathbf{v}_\pi
+\end{equation*}
+
+解得：
+\begin{equation*}
+\mathbf{v}_\pi = (I - \gamma\,\mathbf{P}_\pi)^{-1}\,\mathbf{r}_\pi
+\end{equation*}
+
+\hrulefill
+
+\section{价值函数的迭代求解方法}
+
+\subsection{策略评估 (Policy Evaluation)}
+从初始值 $\mathbf{v}^{(0)}$ 开始迭代：
+\begin{equation*}
+\mathbf{v}^{(k+1)} = \mathbf{r}_\pi + \gamma\,\mathbf{P}_\pi\,\mathbf{v}^{(k)}
+\end{equation*}
+直到满足：
+\begin{equation*}
+\|\mathbf{v}^{(k+1)} - \mathbf{v}^{(k)}\|_\infty < \epsilon
+\end{equation*}
+
+\subsection{策略迭代 (Policy Iteration)}
+\begin{enumerate}
+    \item 初始化策略 $\pi_0$；
+    \item 使用策略评估计算 $v_{\pi_k}$；
+    \item 策略改进：
+    \begin{equation*}
+    \pi_{k+1}(s) = \argmax_a \Bigl(\mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v_{\pi_k}(s')\Bigr)
+    \end{equation*}
+    \item 若 $\pi_{k+1} = \pi_k$ 则停止，否则返回第 2 步。
+\end{enumerate}
+
+\subsection{值迭代 (Value Iteration)}
+从任意初始值 $v^{(0)}$ 开始迭代：
+\begin{equation*}
+v^{(k+1)}(s) = \max_a \Bigl(\mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v^{(k)}(s')\Bigr)
+\end{equation*}
+当收敛到 $v^*$ 后，可通过
+\begin{equation*}
+\pi^*(s) = \argmax_a \Bigl(\mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v^*(s')\Bigr)
+\end{equation*}
+提取得到最优策略。
+
+\hrulefill
+
+\section{Action Value (动作价值函数)}
+
+\textbf{动作价值函数 (Action-Value Function) 定义为：}
+\begin{align*}
+q_\pi(s, a) &= \mathbb{E}_\pi \bigl[G_t \mid S_t = s, A_t = a\bigr] \\
+            &= \mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v_\pi(s')
+\end{align*}
+
+状态价值与动作价值的关系：
+\begin{equation*}
+v_\pi(s) = \sum_a \pi(a \mid s)\,q_\pi(s, a)
+\end{equation*}
+
+\hrulefill
+
+\section{贝尔曼最优方程 (Bellman Optimality Equation)}
+
+最优状态价值函数：
+\begin{equation*}
+v^*(s) = \max_a q^*(s, a)
+\end{equation*}
+
+最优动作价值函数：
+\begin{equation*}
+q^*(s, a) = \mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v^*(s')
+\end{equation*}
+
+综合得：
+\begin{align*}
+v^*(s) &= \max_a \Bigl(\mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v^*(s')\Bigr) \\
+q^*(s, a) &= \mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,\max_{a'} q^*(s', a')
+\end{align*}
+
+\hrulefill
+
+\section{不动点定理与收缩映射}
+
+\textbf{收缩映射 (Contraction Mapping) 定义：}
+
+在完备度量空间 $(X,d)$ 中，若映射 $f:X\to X$ 满足
+\begin{equation*}
+d\bigl(f(x),f(y)\bigr)\le k\,d(x,y),\quad k\in[0,1),
+\end{equation*}
+则称 $f$ 为收缩映射。
+\bigskip
+
+\textbf{巴拿赫不动点定理 (Banach Fixed-Point Theorem)：}
+
+任何收缩映射 $f$ 都存在唯一不动点 $x^*$，并且迭代
+\begin{equation*}
+x_{n+1}=f(x_n)
+\end{equation*}
+必收敛于 $x^*$。
+\bigskip
+
+\textbf{贝尔曼最优算子：}
+
+定义算子 $\mathcal{T}$ 为
+\begin{equation*}
+(\mathcal{T}v)(s) = \max_a \Bigl(\mathcal{R}_s^a + \gamma \sum_{s'} \mathcal{P}_{ss'}^a\,v(s')\Bigr).
+\end{equation*}
+该算子是 $\gamma$-收缩，因此存在唯一不动点 $v^*$，即最优价值函数，且值迭代
+\begin{equation*}
+v^{(k+1)}=\mathcal{T}v^{(k)}
+\end{equation*}
+必收敛于 $v^*$。
+
+\end{document}
