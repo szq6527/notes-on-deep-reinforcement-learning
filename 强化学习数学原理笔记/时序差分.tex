@@ -1,0 +1,136 @@
+\documentclass[12pt, a4paper]{article}
+
+% --- 包的设置 (Preamble) ---
+\usepackage[UTF8]{ctex} % 中文支持
+\usepackage{amsmath, amssymb, amsfonts} % AMS数学公式包
+\usepackage{geometry} % 页面布局
+\usepackage{graphicx} % 插入图片
+\usepackage{booktabs} % 专业表格
+\usepackage{enumitem} % 自定义列表
+\usepackage{hyperref} % 超链接
+\usepackage{xcolor} % 颜色
+
+% --- 页面布局设置 ---
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+% --- 超链接设置 ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={TD学习笔记},
+    pdfpagemode=FullScreen,
+}
+
+% --- 文档标题 ---
+\title{\textbf{强化学习：时序差分(TD)学习的状态价值估计}}
+\author{szq (根据PPT内容整理)}
+\date{\today}
+
+% --- 文档开始 ---
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{TD学习简介}
+时序差分（Temporal Difference, TD）学习是强化学习中的一个核心概念，它结合了蒙特卡洛（Monte Carlo, MC）方法和动态规划（Dynamic Programming, DP）的思想。与MC方法类似，TD学习能直接从原始经验中学习，而无需环境的完整模型。与DP类似，TD学习使用其他已学习到的估计值来更新当前的估计值，这个过程被称为\textbf{自举（bootstrapping）}。本文档将重点介绍用于评估给定策略 $\pi$ 的状态价值函数 $v_\pi$ 的基本TD算法。
+
+\section{TD学习算法}
+
+\subsection{算法所需数据}
+TD算法通过智能体遵循给定策略 $\pi$ 所产生的经验进行学习。这些经验是状态、奖励和动作的序列，我们从中提取转移样本。在每个时间步 $t$，算法需要一个样本元组 $(\vect{s_t, r_{t+1}, s_{t+1}})$ 来执行一次更新。
+算法的最终目标是使估计的价值函数 $v_t(s)$ 收敛到所有状态 $s$ 的真实价值函数 $v_\pi(s)$。
+
+\subsection{算法描述}
+TD算法迭代地更新所访问过的状态 $s_t$ 的价值估计。在任意时间步 $t$，更新规则由以下两个公式定义：
+
+\begin{enumerate}
+    \item 对于在时间 $t$ 访问到的状态 $s_t$：
+    \[
+    v_{t+1}(s_t) = v_t(s_t) - \alpha_t(s_t) \Big[ v_t(s_t) - \big(r_{t+1} + \gamma v_t(s_{t+1})\big) \Big] \label{eq:update}
+    \]
+    \item 对于所有其他未被访问的状态 $s \neq s_t$：
+    \[
+    v_{t+1}(s) = v_t(s), \quad \forall s \neq s_t
+    \]
+\end{enumerate}
+
+其中：
+\begin{itemize}[leftmargin=*]
+    \item $v_t(s)$ 是状态 $s$ 在时间步 $t$ 的估计价值。
+    \item $\alpha_t(s_t)$ 是在时间 $t$ 进行更新的学习率（或步长）。它可以是一个小的正常数，也可以是一个随时间递减的函数。
+    \item $\gamma$ 是折扣因子。
+\end{itemize}
+
+\textbf{核心要点：}
+\begin{itemize}
+    \item 在每一步，只有最近访问过的状态 $s_t$ 的价值被更新，所有其他状态的价值保持不变。
+    \item 在实际表述中，第二个公式通常被省略，因为其含义是默认的。
+\end{itemize}
+
+\section{TD算法的属性与解读}
+为了更好地理解TD更新的机制，我们可以对核心更新规则进行标注，并将其分解为几个关键部分。
+
+\subsection{TD目标与TD误差}
+我们可以重写更新规则，以突出两个关键术语：\textbf{TD目标（TD Target）}和\textbf{TD误差（TD Error）}。
+\[
+\underbrace{v_{t+1}(s_t)}_{\text{新估计}} = \underbrace{v_t(s_t)}_{\text{当前估计}} - \alpha_t(s_t) \underbrace{\Big[ v_t(s_t) - \overbrace{\big(r_{t+1} + \gamma v_t(s_{t+1})\big)}^{\text{TD目标 } \bar{v}_t} \Big]}_{\text{TD误差 } \delta_t}
+\]
+这两个组成部分被正式定义为：
+\begin{itemize}
+    \item \textbf{TD目标 ($\bar{v}_t$):} $\bar{v}_t \doteq r_{t+1} + \gamma v_t(s_{t+1})$ 被称为TD目标。它是对 $s_t$ 价值的一个自举估计，由即时奖励 $r_{t+1}$ 和下一状态价值的折扣估计 $v_t(s_{t+1})$ 构成。
+
+    \item \textbf{TD误差 ($\delta_t$):} $\delta_t \doteq v_t(s_t) - \bar{v}_t = v_t(s_t) - [r_{t+1} + \gamma v_t(s_{t+1})]$ 被称为TD误差。它衡量了当前估计 $v_t(s_t)$ 与信息更丰富（因为它包含了真实奖励$r_{t+1}$）的TD目标 $\bar{v}_t$ 之间的差异。
+\end{itemize}
+因此，更新规则可以被看作是朝着TD目标 $\bar{v}_t$ 的方向，对当前估计 $v_t(s_t)$ 进行调整，调整的幅度由学习率 $\alpha_t$ 控制。
+
+\subsection{为什么称 \texorpdfstring{$\bar{v}_t$}{v_bar_t} 为TD目标？}
+使用“目标”一词是因为该算法不断地将价值估计 $v(s_t)$ 推向 $\bar{v}_t$。我们可以从数学上证明这一点。
+从更新规则出发：
+\begin{align*}
+v_{t+1}(s_t) &= v_t(s_t) - \alpha_t(s_t) [v_t(s_t) - \bar{v}_t] \\
+% 从两边减去目标值
+\implies v_{t+1}(s_t) - \bar{v}_t &= v_t(s_t) - \bar{v}_t - \alpha_t(s_t) [v_t(s_t) - \bar{v}_t] \\
+% 提取公因式
+\implies v_{t+1}(s_t) - \bar{v}_t &= [1 - \alpha_t(s_t)] [v_t(s_t) - \bar{v}_t] \\
+% 取绝对值
+\implies |v_{t+1}(s_t) - \bar{v}_t| &= |1 - \alpha_t(s_t)| |v_t(s_t) - \bar{v}_t|
+\end{align*}
+如果我们假设学习率 $\alpha_t(s_t)$ 是一个小的正数，满足 $0 < \alpha_t(s_t) < 1$，那么我们有 $0 < 1 - \alpha_t(s_t) < 1$。
+因此，
+\[
+|v_{t+1}(s_t) - \bar{v}_t| \leq |v_t(s_t) - \bar{v}_t|
+\]
+这个不等式表明，每一步更新都会减小估计值 $v(s_t)$ 与TD目标 $\bar{v}_t$ 之间的差距，从而有效地将估计值拉向目标。
+
+\subsection{TD误差的解读}
+TD误差 $\delta_t$ 是TD学习中的一个核心量，它有几个重要的解释：
+\begin{itemize}[leftmargin=*, wide]
+    \item \textbf{连续时间步估计之间的差异。} 误差 $\delta_t$ 量化了状态 $s_t$ 的价值估计与后继状态 $s_{t+1}$ 的价值估计之间的不一致性。
+
+    \item \textbf{衡量当前估计 $v_t$ 与真实价值 $v_\pi$ 之间的“缺陷”。} 为了理解这一点，我们可以考虑真实价值函数 $v_\pi$ 的\textit{贝尔曼误差}：
+    \[
+    \delta_{\pi, t} \doteq v_\pi(s_t) - [r_{t+1} + \gamma v_\pi(s_{t+1})]
+    \]
+    根据 $v_\pi$ 的贝尔曼期望方程的定义，这个量的期望值为零：
+    \[
+    \mathbb{E}_\pi[\delta_{\pi, t} | S_t = s_t] = v_\pi(s_t) - \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s_t] = 0
+    \]
+    这说明，如果我们的估计 $v_t$ 是完美的（即 $v_t = v_\pi$），那么期望的TD误差将为零。反之，一个（在期望意义上）非零的TD误差表明我们当前的价值函数 $v_t$ 是不准确的，需要更新。
+
+    \item \textbf{创新（Innovation）。} TD误差可以被解释为从经验样本 $(s_t, r_{t+1}, s_{t+1})$ 中获得的“新信息”或“意外”。它代表了TD目标中未被当前估计 $v_t(s_t)$ 所预测到的部分。这个新信息随后被用来改进估计。
+\end{itemize}
+
+\section{算法的范围与局限性}
+理解这里描述的基础TD算法的适用范围至关重要。
+\begin{itemize}
+    \item 这种形式的TD算法\textbf{仅仅是用来评估一个给定策略 $\pi$ 的状态价值}。它是一种\textit{策略评估}算法。
+    \item 它不直接估计动作价值 ($q_\pi(s,a)$)。
+    \item 它不寻找最优策略。它仅仅评估用于生成数据的那个策略的好坏。
+\end{itemize}
+尽管有这些局限性，这个算法是极其基础和重要的。TD误差和自举等核心概念构成了更高级算法（如Q-Learning和SARSA）的基础，而这些算法能够估计动作价值并寻找最优策略。
+
+\end{document}

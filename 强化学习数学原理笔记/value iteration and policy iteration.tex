@@ -1,0 +1,149 @@
+\documentclass[12pt, a4paper]{article}
+
+% --- 包的设置 (Preamble) ---
+\usepackage[UTF8]{ctex} % 中文支持
+\usepackage{amsmath, amssymb, amsfonts} % AMS数学公式包
+\usepackage{geometry} % 页面布局
+\usepackage{graphicx} % 插入图片
+\usepackage{booktabs} % 专业表格
+\usepackage{enumitem} % 自定义列表
+\usepackage{hyperref} % 超链接
+\usepackage{xcolor} % 颜色
+
+% --- 页面布局设置 ---
+\geometry{a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+% --- 超链接设置 ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={强化学习算法解读},
+    pdfpagemode=FullScreen,
+}
+
+% --- 自定义数学命令 ---
+\newcommand{\argmax}{\operatornamewithlimits{argmax}} % argmax
+\newcommand{\vect}[1]{\mathbf{#1}} % 向量加粗
+
+% --- 文档标题 ---
+\title{\textbf{强化学习经典算法解读：价值迭代与策略迭代}}
+\author{szq (根据PPT内容整理)}
+\date{2025年7月26日}
+
+% --- 文档开始 ---
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{引言}
+本文档根据提供的PPT内容，详细解读了强化学习中两种经典的动态规划（Dynamic Programming, DP）算法：\textbf{价值迭代（Value Iteration）}和\textbf{策略迭代（Policy Iteration）}。这两种算法都是在已知环境模型（即状态转移概率 $P$ 和奖励 $R$）的前提下，求解马尔可夫决策过程（MDP）最优策略和最优价值函数的核心方法。
+
+\section{价值迭代 (Value Iteration)}
+
+\subsection{核心思想与算法引出}
+价值迭代的目标是求解\textbf{贝尔曼最优方程 (Bellman Optimality Equation)}：
+\[
+v^*(s) = \max_{a \in \mathcal{A}} \sum_{s', r} p(s', r | s, a) [r + \gamma v^*(s')]
+\]
+在向量形式下，可以写作：
+\[
+\vect{v} = \max_{\pi} (\vect{r}_{\pi} + \gamma \vect{P}_{\pi} \vect{v})
+\]
+由于该方程中存在 $\max$ 算子，导致其为非线性方程组，无法直接求解。
+
+根据\textbf{收缩映射定理 (Contraction Mapping Theorem)}，我们可以将贝尔曼最优方程的右侧视为一个更新算子，通过反复迭代来逼近最优解。这便引出了价值迭代算法。
+
+\subsection{算法描述}
+价值迭代从一个任意的初始价值函数 $\vect{v}_0$ 开始，通过以下公式进行迭代更新：
+\[
+\vect{v}_{k+1} = \max_{\pi} (\vect{r}_{\pi} + \gamma \vect{P}_{\pi} \vect{v}_k), \quad k=0, 1, 2, \dots
+\]
+这个过程会持续进行，直到价值函数的变化足够小（即 $\lVert \vect{v}_{k+1} - \vect{v}_k \rVert < \epsilon$），此时的 $\vect{v}_{k+1}$ 就近似为最优价值函数 $\vect{v}^*$。
+
+\subsection{算法分解与元素形式}
+价值迭代的每一步更新 `v_{k+1}(s) = ...` 都可以被逻辑上分解为两个步骤，这有助于理解其计算过程。
+
+\begin{enumerate}[label=\textbf{Step \arabic*}:, wide, labelwidth=!, labelindent=0pt]
+    \item \textbf{策略更新 (Policy Update) (隐式)} \\
+    在这一步，我们基于当前的价值估计 $\vect{v}_k$，找到一个临时的贪心策略 $\pi_{k+1}$。对于每一个状态 $s \in \mathcal{S}$，该策略选择能够最大化期望回报的动作：
+    \[
+    \pi_{k+1}(s) = \argmax_{a \in \mathcal{A}} \left\{ \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')] \right\}
+    \]
+    我们通常将括号内的部分定义为动作价值函数 $q_k(s, a)$：
+    \[
+    q_k(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+    \]
+    因此，策略更新可以简化为：$\pi_{k+1}(s) = \argmax_{a} q_k(s, a)$。
+
+    \item \textbf{价值更新 (Value Update)} \\
+    接着，我们使用上一步找到的贪心策略来更新状态的价值。由于该策略总是选择最优动作，所以新的价值就是该状态下所有动作价值中的最大值：
+    \[
+    v_{k+1}(s) = \max_{a \in \mathcal{A}} q_k(s, a)
+    \]
+\end{enumerate}
+
+\textbf{重要说明：} 在迭代过程中（收敛前），$\vect{v}_k$ 并不是任何一个固定策略下的真实价值函数。它仅仅是通往最优价值函数 $\vect{v}^*$ 的一个中间估计值。
+
+
+\section{策略迭代 (Policy Iteration)}
+策略迭代是另一种求解MDP的经典算法。与价值迭代直接优化价值函数不同，策略迭代在\textbf{策略空间}中进行搜索，通过交替评估和改进策略来找到最优策略。
+
+\subsection{算法描述}
+算法从一个随机的初始策略 $\pi_0$ 开始，循环执行以下两个步骤，直到策略不再发生变化。
+\begin{enumerate}[label=\textbf{Step \arabic*}:, wide, labelwidth=!, labelindent=0pt]
+    \item \textbf{策略评估 (Policy Evaluation, PE)} \\
+    对于当前固定的策略 $\pi_k$，精确地计算其对应的状态价值函数 $\vect{v}_{\pi_k}$。这需要求解\textbf{贝尔曼期望方程}：
+    \[
+    \vect{v}_{\pi_k} = \vect{r}_{\pi_k} + \gamma \vect{P}_{\pi_k} \vect{v}_{\pi_k}
+    \]
+    这是一个线性方程组。对于大型问题，通常使用迭代法求解：
+    \[
+    \vect{v}_{\pi_k}^{(j+1)} = \vect{r}_{\pi_k} + \gamma \vect{P}_{\pi_k} \vect{v}_{\pi_k}^{(j)}
+    \]
+    这个内部迭代会进行直到 $\vect{v}_{\pi_k}^{(j)}$ 收敛，得到精确的 $\vect{v}_{\pi_k}$。
+
+    \item \textbf{策略改进 (Policy Improvement, PI)} \\
+    利用上一步计算出的精确价值函数 $\vect{v}_{\pi_k}$，找到一个更好的新策略 $\pi_{k+1}$。这个新策略对于每个状态 $s$ 都是贪心的：
+    \[
+    \pi_{k+1}(s) = \argmax_{a \in \mathcal{A}} \left\{ \sum_{s', r} p(s', r | s, a) [r + \gamma v_{\pi_k}(s')] \right\}
+    \]
+    根据\textbf{策略改进定理}，这样得到的新策略 $\pi_{k+1}$ 总是优于或等于旧策略 $\pi_k$。
+\end{enumerate}
+这个过程 `$\pi_0 \xrightarrow{PE} \vect{v}_{\pi_0} \xrightarrow{PI} \pi_1 \xrightarrow{PE} \vect{v}_{\pi_1} \xrightarrow{PI} \dots$` 会持续进行，直到 $\pi_{k+1} = \pi_k$。此时，算法收敛，找到了最优策略 $\pi^*$ 和最优价值函数 $\vect{v}^*$。
+
+\section{总结与对比}
+价值迭代和策略迭代是解决MDP问题的两种 foundational 算法。它们都保证收敛到最优解，但在计算过程和效率上有所不同。
+
+\begin{table}[h!]
+\centering
+\caption{价值迭代与策略迭代的对比}
+\label{tab:comparison}
+\begin{tabular}{lll}
+\toprule
+\textbf{特性} & \textbf{价值迭代 (Value Iteration)} & \textbf{策略迭代 (Policy Iteration)} \\
+\midrule
+\textbf{迭代对象} & 价值函数 $\vect{v}_k$ & 策略 $\pi_k$ \\
+\addlinespace
+\textbf{核心操作} & 一步完成价值更新和隐式策略改进。 & 分为两步：策略评估和策略改进。 \\
+& $\vect{v}_{k+1} = \max_a Q(s,a; \vect{v}_k)$ & 1. PE: 求解线性方程组 (开销大)。\\
+& & 2. PI: 贪心更新策略 (开销小)。\\
+\addlinespace
+\textbf{每次迭代} & 计算简单，只需遍历所有状态和动作。 & 计算复杂，PE步骤本身需要一个\\
+\textbf{的复杂度} & & 完整的迭代过程直至收敛。 \\
+\addlinespace
+\textbf{收敛速度} & 通常需要较多次迭代才能收敛。 & 外部循环（策略改进）的迭代次数\\
+& & 通常很少，能很快找到最优策略。\\
+\addlinespace
+\textbf{联系} & 可看作“截断的”策略迭代，即PE & 每次改进策略前，都要求对当前\\
+& 步骤只迭代一次。 & 策略的价值进行充分评估。\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+理解这两种算法的原理、区别与联系，对于学习后续更高级的强化学习算法，如Q-Learning和Actor-Critic等，至关重要。
+
+\end{document}
