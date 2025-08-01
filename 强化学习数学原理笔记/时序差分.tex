@@ -133,4 +133,65 @@ TD误差 $\delta_t$ 是TD学习中的一个核心量，它有几个重要的解�
 \end{itemize}
 尽管有这些局限性，这个算法是极其基础和重要的。TD误差和自举等核心概念构成了更高级算法（如Q-Learning和SARSA）的基础，而这些算法能够估计动作价值并寻找最优策略。
 
+\newpage
+\section{TD算法的数学原理}
+从数学角度看，TD算法究竟在做什么？简而言之：\textbf{它在求解给定策略 $\pi$ 的贝尔曼方程}。下面我们将详细阐述这个过程。
+
+\subsection{贝尔曼期望方程}
+首先，我们需要理解TD算法的目标方程。对于一个给定的策略 $\pi$，其状态价值函数 $v_\pi(s)$ 定义为从状态 $s$ 出发能获得的期望折扣回报。
+这个定义可以递归地展开，得到贝尔曼方程。其中一种重要的形式是\textbf{贝尔曼期望方程 (Bellman expectation equation)}：
+\[
+v_\pi(s) = \mathbb{E}_\pi [R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s], \quad s \in \mathcal{S}.
+\]
+这个方程表明，一个状态的真实价值等于在该状态下采取策略 $\pi$ 后，获得的即时奖励与下一状态的折扣价值的期望值。TD算法的核心目标就是找到一个价值函数 $v$，使其满足这个方程。
+
+\subsection{使用Robbins-Monro算法求解}
+为了求解贝尔曼期望方程，我们可以将其转化为一个随机近似（Stochastic Approximation）问题。
+
+\subsubsection{问题重构}
+我们可以定义一个函数 $g(v(s))$，使得当 $v(s)$ 是真实价值 $v_\pi(s)$ 时，该函数值为零：
+\[
+g(v(s)) = v(s) - \mathbb{E}_\pi [R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t=s]
+\]
+因此，求解贝尔曼期望方程就等价于寻找函数 $g(v(s))$ 的根，即求解 $g(v(s))=0$。
+
+在实际应用中，我们无法计算期望 $\mathbb{E}[\cdot]$，因为我们没有环境模型。我们只能通过与环境交互来获得具体的样本，如奖励 $r$ 和下一状态 $s'$。因此，我们只能得到一个带有噪声的观测值 $\tilde{g}(v(s))$:
+\[
+\tilde{g}(v(s)) = v(s) - [r + \gamma v_\pi(s')]
+\]
+这个带噪观测可以分解为：
+\[
+\tilde{g}(v(s)) = \underbrace{\left(v(s) - \mathbb{E}[R + \gamma v_\pi(S')|s]\right)}_{g(v(s))} + \underbrace{\left(\mathbb{E}[R + \gamma v_\pi(S')|s] - [r + \gamma v_\pi(s')]\right)}_{\eta}
+\]
+其中，$\eta$ 是一个零均值的噪声项，即 $\mathbb{E}[\eta]=0$。
+
+\subsubsection{理想化的RM算法}
+有了这个设定，我们就可以使用经典的\textbf{Robbins-Monro (RM) 算法}来寻找 $g(v(s))=0$ 的解。RM算法的迭代格式如下：
+\begin{align}
+v_{k+1}(s) &= v_k(s) - \alpha_k \tilde{g}(v_k(s)) \nonumber \\
+           &= v_k(s) - \alpha_k \left( v_k(s) - [r_k + \gamma v_\pi(s'_k)] \right), \quad k=1,2,3,\dots
+\end{align}
+其中，$v_k(s)$ 是对 $v_\pi(s)$ 的第 $k$ 次估计，$r_k$ 和 $s'_k$ 是在第 $k$ 步获得的样本。
+
+然而，上述RM算法依赖于两个非常强的假设：
+\begin{enumerate}
+    \item 我们有一个经验样本集合 $\{(s, r, s')\}$。
+    \item 我们\textbf{已经知道了}下一状态的真实价值 $v_\pi(s')$。
+\end{enumerate}
+第二个假设在现实中是不成立的，因为 $v_\pi$ 正是我们要计算的目标。
+
+\subsubsection{从RM算法到TD算法的修正}
+为了让算法变得实用，我们需要移除上述不切实际的假设。这引出了两个关键的修正，从而将理想化的RM算法转变为我们所熟知的TD算法：
+\begin{itemize}
+    \item \textbf{使用序列样本：} 将样本集从独立的 $\{(s,r,s')\}$ 变为在同一个episode中连续产生的序列样本 $\{(s_t, r_{t+1}, s_{t+1})\}$，这使得算法可以在线学习。
+    \item \textbf{使用当前估计值替代真实值 (自举)：} 这是最重要的一步。因为我们不知道真实的 $v_\pi(s')$，我们用当前对它的\textbf{估计值} $v_k(s')$ 来代替它。
+\end{itemize}
+
+通过第二个修正，我们将RM更新公式中的未知项 $v_\pi(s'_k)$ 替换为已知的当前估计值 $v_k(s'_k)$（在TD的语境下，即 $v_t(s_{t+1})$）。这样，更新公式就变成了：
+\[
+v_{t+1}(s_t) = v_t(s_t) - \alpha_t \left( v_t(s_t) - [r_{t+1} + \gamma \boldsymbol{v_t(s_{t+1})}] \right)
+\]
+这正是我们在前面章节中介绍的TD学习算法的更新规则。通过这种方式，TD算法可以被严谨地看作是求解贝尔曼期望方程的一种随机近似方法。
+
+
 \end{document}
